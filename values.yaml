@@ -1,0 +1,5 @@
+configMap:
+  content: |
+    key1: latest3
+    key2: latest5
+
