@@ -154,3 +154,61 @@ sealed_secret = kubernetes.yaml.ConfigFile("sealed-secret",
 
 # Export any relevant outputs or resources
 pulumi.export("sealed_secret", sealed_secret)
+
+import pulumi
+from pulumi_kubernetes import Provider, core
+import pulumi_aws as aws
+from pulumi import Config
+
+# Create a Kubernetes Provider to interact with the cluster
+k8s_provider = Provider("k8s-provider", kubeconfig="")
+config = Config()
+
+# Create a Kubernetes Namespace
+namespace = core.v1.Namespace(
+    "my-namespace", metadata={"name": "sealed-secrets-example"}, opts=pulumi.ResourceOptions(provider=k8s_provider)
+)
+
+# Create a Secret
+secret_data = {"foo": config.get_secret("my-secret-value")}
+kube_secret = core.v1.Secret(
+    "my-secret",
+    metadata={"namespace": namespace.metadata["name"]},
+    data=secret_data,
+    opts=pulumi.ResourceOptions(provider=k8s_provider),
+)
+
+# Get KMS Key and SealedSecret public key using aws.kms.getSecret
+secret_key = aws.kms.get_secret(
+    secrets=[
+        {
+            "name": "sealed-secrets-key",
+            "payload": config.get_secret("sealed-secrets-key"),
+        },
+    ],
+)
+
+# Create SealedSecret
+sealed_secret = pulumi.CustomResource(
+    "my-sealed-secret",
+    api_version="bitnami.com/v1alpha1",
+    kind="SealedSecret",
+    metadata={"namespace": namespace.metadata["name"]},
+    spec={
+        "template": {
+            "metadata": {
+                "namespace": namespace.metadata["name"],
+            },
+        },
+        "encryptedData": secret_data,
+        "publicKey": {
+            "name": secret_key.secrets[0]["name"],
+            "key": secret_key.secrets[0]["payload"],
+        },
+    },
+    opts=pulumi.ResourceOptions(provider=k8s_provider),
+)
+
+# Export the Namespace name
+pulumi.export("namespace", namespace.metadata["name"])
+
