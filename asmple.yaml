@@ -84,4 +84,32 @@ sealed_secret = ConfigFile(
 # Export the SealedSecret
 pulumi.export("sealed_secret", sealed_secret)
 
+import pulumi
+import pulumi_kubernetes as kubernetes
+import pulumi_kubernetes.helm.v3 as helm
+
+# Define the path to the SealedSecret YAML file
+sealed_secret_yaml_path = "path/to/sealedsecret.yaml"  # Update with the correct file path
+
+# Read the SealedSecret YAML file
+with open(sealed_secret_yaml_path, "r") as f:
+    sealed_secret_yaml = f.read()
+
+# Create the Kubernetes provider
+k8s_provider = kubernetes.Provider("k8s-provider")
+
+# Create the Helm chart resource
+chart = helm.Chart("my-chart",
+    chart="my-chart",  # Update with the correct Helm chart name
+    namespace="my-namespace",  # Update with the desired namespace
+    values={
+        "sealedSecrets.customResourceDefinitions.create": "false",
+        "sealedSecrets.sealedSecretsController.enabled": "false",
+        "sealedSecrets.sealedSecretsController.resources": sealed_secret_yaml,
+    },
+    kubernetes=k8s_provider,
+)
+
+# Export any relevant outputs or resources
+pulumi.export("chart", chart)
 
