@@ -1,0 +1,47 @@
+import pulumi
+import subprocess
+from pulumi_kubernetes.core.v1 import Secret
+
+# Define the Kubernetes Secret data
+secret_data = {
+    "username": "admin",
+    "password": "mysecretpassword"
+}
+
+# Create the Kubernetes Secret
+k8s_secret = Secret(
+    "my-secret",
+    metadata={
+        "name": "my-secret",
+    },
+    string_data=secret_data
+)
+
+# Export the Kubernetes Secret
+pulumi.export("k8s_secret", k8s_secret)
+
+# Convert the Kubernetes Secret to SealedSecret
+def convert_to_sealed_secret(secret_yaml):
+    # Define the command to execute kubeseal
+    kubeseal_command = ["kubeseal", "--format=yaml"]
+
+    # Execute kubeseal and capture the output
+    kubeseal_output = subprocess.check_output(kubeseal_command, input=secret_yaml.encode("utf-8")).decode("utf-8")
+
+    return kubeseal_output
+
+# Convert the Kubernetes Secret to SealedSecret
+sealed_secret_yaml = convert_to_sealed_secret(k8s_secret.metadata.apply(lambda metadata: metadata.apply(lambda meta: meta.name)).apply(lambda name: pulumi.runtime.getConfig().require("kubeconfig")))
+
+# Deploy the SealedSecret using the Kubernetes provider
+sealed_secret = pulumi.Kubernetes.yaml.ConfigFile(
+    "sealed-secret",
+    file=sealed_secret_yaml,
+    transformations=[
+        lambda _: _.apply(lambda obj: pulumi.Output.from_input(obj).apply(lambda sealed_secret: sealed_secret))
+    ]
+)
+
+# Export the SealedSecret
+pulumi.export("sealed_secret", sealed_secret)
+
