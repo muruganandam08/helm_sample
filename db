@@ -1,0 +1,31 @@
+Certainly! Here's an example using Pulumi Python to create DynamoDB tables and retrieve their ARNs:
+
+```python
+import pulumi
+from pulumi_aws import dynamodb
+
+table_names = ['Table1', 'Table2', 'Table3', 'Table4', 'Table5']
+table_arns = []
+
+for name in table_names:
+    table = dynamodb.Table(
+        name,
+        attributes=[
+            dynamodb.TableAttributeArgs(
+                name='id',
+                type='N'
+            )
+        ],
+        hash_key='id',
+        read_capacity=5,
+        write_capacity=5
+    )
+    table_arns.append(table.arn)
+
+# Pass the ARNs to other resources or use them as needed
+other_function(table_arns)
+```
+
+In this example, we iterate over the list of table names and create DynamoDB tables using the `dynamodb.Table` resource from the `pulumi_aws` package. We specify the table name, attributes, hash key, and provisioned capacity.
+
+We then retrieve the ARN of each table using `table.arn` and store them in the `table_arns` list. Finally, you can pass the `table_arns` list to other resources or use them as needed in your Pulumi stack.
