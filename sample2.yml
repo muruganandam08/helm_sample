@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+      annotations:
+         {{- if .Values.annotations.checksum }}
+         checksum/apache-config: {{ printf .Values.configMap.content | sha256sum | quote }}
+         {{- end }}
+    spec:
+      volumes:
+        - name: config-volume
+          configMap:
+            name: my-configmap
+      containers:
+        - name: my-container
+          image: nginx
+          env:
+            {{- if .Values.configMapEnabled }}
+            {{- range $index, $name := .Values.configMapKeys }}
+            - name: {{ $name }}
+              valueFrom:
+                configMapKeyRef:
+                  name: my-configmap
+                  key: {{ $name }}
+            {{- end }}
+            {{- end }}
+            - name: DEFAULT_ENV_VAR_1
+              value: default_value_1
+            - name: DEFAULT_ENV_VAR_2
+              value: default_value_2
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
